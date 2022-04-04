@@ -1,0 +1,33 @@
+*{
+    margin: 0;
+    padding: 0;
+    /*盒子模型,忽略边框*/
+    box-sizing: border-box;
+}
+/*定义常用css样式*/
+.ml-5 {
+    margin-left: 5px;
+}
+.mr-5 {
+    margin-right: 5px;
+}
+.pd-10 {
+    padding: 10px 0;
+}
+.m-10 {
+    margin: 10px 0;
+}
+.fontSize18{
+    font-size: 18px;
+}
+.fontSize12{
+    font-size: 12px;
+}
+/*全局table标题栏颜色*/
+.headerBg {
+    background: #eee !important;
+}
+a {
+    text-decoration: none;
+    color: #666;
+}
