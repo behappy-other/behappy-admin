@@ -8,7 +8,7 @@
         <br/>
         <el-tag
           v-for="(tagItem, tagItemIndex) in tag.tagItems"
-          :key="tagItem.valueId"
+          :key="tagItemIndex"
           closable
           :disable-transitions="false"
           @close="handleTagClose(tagIndex, tagItemIndex)">
@@ -42,8 +42,8 @@
       <el-col :span="8">
         <el-select v-model="addTagInput.selectValues" multiple filterable allow-create default-first-option placeholder="请选择">
           <el-option
-            v-for="item in dbTagValues"
-            :key="item.valueId"
+            v-for="(item,index) in dbTagValues"
+            :key="index"
             :label="item.propValue"
             :value="item.propValue">
           </el-option>
@@ -82,20 +82,12 @@ export default {
       // 根据选定的规格所查询出来的规格值
       dbTagValues: [],
       specs: [], // 使用的规格
-      maxValueId: 0, // 规格值id最大
-      maxPropId: 0, // 规格id 最大
       initing: false
     }
   },
-  created: function () {
-    prodPropService.list().then(({ data }) => {
-      this.dbTags = data
-      if (data) {
-        this.maxPropId = Math.max.apply(Math, data.map(item => { return item.propId }))
-      } else {
-        this.maxPropId = 0
-      }
-    })
+  created: async function () {
+    const data = await prodPropService.list()
+    this.dbTags = data
   },
   props: {
     skuList: {
@@ -119,8 +111,8 @@ export default {
       get () { return this.$store.state.prod.skuTags },
       set (val) { this.$store.commit('prod/updateSkuTags', val) }
     },
-    defalutSku () {
-      return this.$store.state.prod.defalutSku
+    defaultSku () {
+      return this.$store.state.prod.defaultSku
     }
   },
   watch: {
@@ -147,12 +139,12 @@ export default {
           val.forEach(tag => {
             if (skuList.length === 0) {
               if (this.tagName === tag.tagName) {
-                const sku = Object.assign({}, this.defalutSku)
+                const sku = Object.assign({}, this.defaultSku)
                 sku.properties = properties // 销售属性组合字符串
                 skuList.push(sku)
               } else {
                 tag.tagItems.forEach(tagItem => {
-                  const sku = Object.assign({}, this.defalutSku)
+                  const sku = Object.assign({}, this.defaultSku)
                   sku.properties = `${tag.tagName}:${tagItem.propValue}` // 销售属性组合字符串
                   skuList.push(sku)
                 })
@@ -192,7 +184,7 @@ export default {
           // console.log('tag', tag)
             if (skuList.length === 0) {
               tag.tagItems.forEach(tagItem => {
-                const sku = Object.assign({}, this.defalutSku)
+                const sku = Object.assign({}, this.defaultSku)
                 sku.properties = `${tag.tagName}:${tagItem.propValue}` // 销售属性组合字符串
                 skuList.push(sku)
               })
@@ -210,7 +202,7 @@ export default {
           })
         }
         if (!skuList.length) {
-          skuList.push(Object.assign({}, this.defalutSku))
+          skuList.push(Object.assign({}, this.defaultSku))
         }
         // debugger
         this.$emit('change', skuList)
@@ -223,7 +215,7 @@ export default {
       this.value = skuList
       if (!skuList || !skuList.length) {
         this.skuTags = []
-        this.$emit('change', [Object.assign({}, this.defalutSku)])
+        this.$emit('change', [Object.assign({}, this.defaultSku)])
         return
       }
       this.initing = true
@@ -270,14 +262,6 @@ export default {
         return
       }
       this.isShowTagInput = false
-      for (let i = 0; i < selectValues.length; i++) {
-        const element = selectValues[i]
-        const is = Object.prototype.toString.call(element) === '[object Object]'
-        if (!is) {
-          this.maxPropId = this.maxPropId + 1
-          break
-        }
-      }
       const tagItems = []
       for (let i = 0; i < selectValues.length; i++) {
         const element = selectValues[i]
@@ -305,7 +289,7 @@ export default {
       this.dbTagValues = []
     },
     // 规格名输入框，选中规格事件
-    handleTagClick () {
+    async handleTagClick () {
       // 清空规格值输入框
       this.dbTagValues = []
       this.addTagInput.selectValues = []
@@ -314,13 +298,7 @@ export default {
       // 如果不是，则说明为用户随便输入
       if (specsIndex === -1) return
       // 如果数据库已有该规格名，则获取根据id获取该规格名称含有的规格值
-      this.$http({
-        url: this.$http.adornUrl(`/prod/spec/listSpecValue/${this.dbTags[specsIndex].propId}`),
-        method: 'get',
-        params: this.$http.adornParams()
-      }).then(({ data }) => {
-        this.dbTagValues = data
-      })
+      this.dbTagValues = await prodPropService.listSpecValue(this.dbTags[specsIndex].propId)
     },
     // 关闭标签 --删除
     handleTagClose (tagIndex, tagItemIndex) {
@@ -343,8 +321,7 @@ export default {
       const index = tagItems.length - 1
       this.tagName = this.skuTags[tagIndex].tagName
       this.tagItemName = this.tagItemInputs[tagIndex].value
-      const maxValue = this.getMaxValueId(this.skuTags[tagIndex].tagItems)
-      const tagItem = { propId: index === -1 ? 0 : this.skuTags[tagIndex].tagItems[index].propId, propValue: itemValue, valueId: index === -1 ? 0 : (maxValue + 1) }
+      const tagItem = { propId: index === -1 ? 0 : this.skuTags[tagIndex].tagItems[index].propId, propValue: itemValue }
       if (tagItem) {
         this.$store.commit('prod/addSkuTagItem', { tagIndex, tagItem })
       }
@@ -359,11 +336,6 @@ export default {
       this.$nextTick(() => {
         this.$refs[`saveTagInput${tagIndex}`][0].$refs.input.focus()
       })
-    },
-    // 获取数据集合所有对象中某个属性的最大值
-    getMaxValueId (list) {
-      const value = Math.max.apply(Math, list.map(item => { return item.valueId }))
-      return value
     },
     // 删除 规格
     removeTag (tagIndex) {
@@ -396,49 +368,3 @@ export default {
   }
 }
 </script>
-
-<style lang="scss">
-.mod-prod-sku-tag {
-  .el-tag + .el-tag {
-    margin-left: 10px;
-  }
-  .button-new-tag {
-    margin-left: 10px;
-    height: 32px;
-    line-height: 30px;
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-  .input-new-tag {
-    width: 90px;
-    margin-left: 10px;
-    vertical-align: bottom;
-  }
-}
-
-// 新增规格外部边框
-.sku-border{
-  border: 1px solid #EBEEF5;
-  width:70%
-}
-.sku-background{
-  background-color: #F6f6f6;
-  margin: 12px 12px;
-  .el-button{
-    margin-left: 10px;
-    span{
-      color:#000 !important;
-    }
-  }
-  .el-form-item__label{
-    padding:0 24px 0 0
-  }
-}
-.sku-tag{
-  margin: 12px 12px;
-}
-.tagTree{
-  margin-left: 18px;
-  padding-bottom:8px;
-}
-</style>

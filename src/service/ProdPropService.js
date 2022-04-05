@@ -18,6 +18,10 @@ class ProdPropService {
   async list () {
     return req(urlPrefix + '/list')
   }
+
+  async listSpecValue (propId) {
+    return req(urlPrefix + `/spec-value/${propId}`)
+  }
 }
 
 export default new ProdPropService()

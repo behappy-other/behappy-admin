@@ -16,8 +16,7 @@
           label="sku图片"
           width="180">
           <template slot-scope="scope">
-            <pic-upload v-model="scope.row.pic">
-            </pic-upload>
+            <single-upload v-model="scope.row.pic"/>
           </template>
         </el-table-column>
         <el-table-column
@@ -93,6 +92,7 @@
 
 <script>
 import prodPropService from '@/service/ProdPropService'
+import singleUpload from '@/components/upload/singleUpload'
 export default {
   data () {
     return {
@@ -105,6 +105,7 @@ export default {
     }
   },
   components: {
+    singleUpload
   },
   props: {
     value: {

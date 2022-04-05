@@ -6,6 +6,7 @@ export function getUUID () {
     return (c === 'x' ? (Math.random() * 16 | 0) : ('r&0x3' | '0x8')).toString(16)
   })
 }
+
 // 防抖 防止表单重复提交
 export const Debounce = (fn, t) => {
   const delay = t || 300
@@ -22,6 +23,10 @@ export const Debounce = (fn, t) => {
 
     if (callNow) fn.apply(this, args)
   }
+}
+
+export function isNumber (value) {
+  return !isNaN(+value)
 }
 
 /**

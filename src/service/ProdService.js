@@ -14,6 +14,10 @@ class ProdService {
   async info (prodId) {
     return req(urlPrefix + `/info/${prodId}`)
   }
+
+  async saveOrUpdate (param) {
+    return req(urlPrefix, 'post', {}, param)
+  }
 }
 
 export default new ProdService()

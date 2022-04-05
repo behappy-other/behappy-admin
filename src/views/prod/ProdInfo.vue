@@ -3,9 +3,9 @@
     <el-form :model="dataForm"
              ref="dataForm"
              label-width="100px">
-      <el-form-item label="产品图片">
-        <mul-pic-upload v-model="dataForm.imgs"></mul-pic-upload>
-      </el-form-item>
+      <!--<el-form-item label="产品图片">-->
+      <!--  <mul-pic-upload v-model="dataForm.imgs"></mul-pic-upload>-->
+      <!--</el-form-item>-->
       <el-form-item label="状态">
         <el-radio-group v-model="dataForm.status">
           <el-radio :label="1">上架</el-radio>
@@ -16,11 +16,11 @@
                     :rules="[{ required: true, message: '请选择产品分类'}]"
                     prop="categoryId">
         <el-col :span="8">
-          <el-cascader expand-trigger="hover"
+          <el-cascader props.expandTrigger="hover"
                        :options="category.list"
                        :props="category.props"
                        v-model="category.selected"
-                       change-on-select
+                       props.checkStrictly
                        @change="handleCategoryChange">
           </el-cascader>
         </el-col>
@@ -62,8 +62,7 @@
   </div>
 </template>
 <script>
-import { treeDataTranslate, idList, Debounce } from '@/utils'
-import MulPicUpload from '@/components/upload/multiUpload.vue'
+import { Debounce, idList, isNumber } from '@/utils'
 import SkuTag from './SkuTag'
 import SkuTable from './SkuTable'
 import categoryService from '@/service/CategoryService'
@@ -100,39 +99,39 @@ export default {
     }
   },
   components: {
-    MulPicUpload,
     SkuTag,
     SkuTable
   },
-  computed: {
-  },
-  activated () {
-    this.dataForm.prodId = this.$route.query.prodId
-    this.getDataList()
+  computed: {},
+  async activated () {
+    // 判断: prodId=%5Bobject%20PointerEvent%5D
+    console.log(this.$route.query.prodId)
+    if (isNumber(this.$route.query.prodId)) {
+      this.dataForm.prodId = this.$route.query.prodId
+    }
+    await this.getDataList()
   },
   methods: {
     // 获取分类数据
-    getDataList () {
-      this.getCategoryList().then(() => {
-        if (this.dataForm.prodId) {
-          // 获取产品数据
-          prodService.info(this.dataForm.prodId).then(({ data }) => {
-            this.dataForm = data
-            this.$refs.skuTag.init(data.skuList)
-            this.$refs.skuTable.init()
-            this.category.selected = idList(this.category.list, this.dataForm.categoryId, 'categoryId', 'children').reverse()
-            this.dataForm.tagList = data.tagList
-          })
-        } else {
-          // $nextTick: 待界面渲染完毕执行
-          this.$nextTick(() => {
-            this.$refs.dataForm.resetFields()
-            this.$refs.skuTag.init()
-            this.dataForm.pic = ''
-            this.dataForm.imgs = ''
-          })
-        }
-      })
+    async getDataList () {
+      await this.getCategoryList()
+      if (this.dataForm.prodId) {
+        // 获取产品数据
+        const data = await prodService.info(this.dataForm.prodId)
+        console.log(data)
+        this.dataForm = data
+        this.$refs.skuTag.init(data.skuList)
+        this.$refs.skuTable.init()
+        this.category.selected = idList(this.category.list, this.dataForm.categoryId, 'categoryId', 'children').reverse()
+      } else {
+        // $nextTick: 待界面渲染完毕执行
+        this.$nextTick(() => {
+          this.$refs.dataForm.resetFields()
+          this.$refs.skuTag.init()
+          this.dataForm.pic = ''
+          this.dataForm.imgs = ''
+        })
+      }
     },
     // 获取分类信息
     async getCategoryList () {
@@ -140,6 +139,8 @@ export default {
       this.category.list = this.categoryList = await categoryService.load({
         grade: 2
       })
+      console.log(this.category.list)
+      console.log(this.categoryList)
     },
     // 选择分类改变事件
     handleCategoryChange (val) {
@@ -147,7 +148,7 @@ export default {
     },
     // 表单提交
     dataFormSubmit: Debounce(function () {
-      this.$refs.dataForm.validate((valid) => {
+      this.$refs.dataForm.validate(async (valid) => {
         if (!valid) {
           return
         }
@@ -156,23 +157,7 @@ export default {
         this.paramSetPriceAndStocks(param)
         // 商品主图
         param.pic = this.dataForm.imgs.split(',')[0]
-        this.$http({
-          url: this.$http.adornUrl('/prod/prod'),
-          method: param.prodId ? 'put' : 'post',
-          data: this.$http.adornData(param)
-        }).then(({ data }) => {
-          this.$message({
-            message: '操作成功',
-            type: 'success',
-            duration: 1500,
-            onClose: () => {
-              this.visible = false
-              this.$store.commit('common/removeMainActiveTab')
-              this.$router.push({ name: 'prod-prodList' })
-              this.$emit('refreshDataList')
-            }
-          })
-        })
+        await prodService.saveOrUpdate(param)
       })
     }),
     paramSetPriceAndStocks (param) {
